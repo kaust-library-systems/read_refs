@@ -1,0 +1,52 @@
+# Pinned ETD test subset for etd_references.py
+#
+# One record per line: <etd_id> <expected> [# note]
+# Files are read from  $ETD_MD_DIR/<id>/<id>.md  (default /data/exports/etd_md).
+#
+# expected values:
+#   parsed      References heading found AND entries segmented
+#   no-segment  References heading found but no entries could be segmented
+#   no-heading  no References-like heading found
+#
+# IDs were picked from the KAUST ETD corpus to cover the format variants seen
+# so far. Update `expected` (with a note) in the same commit that changes how a
+# document parses, so run_samples.py stays an honest regression signal.
+
+# --- Stage 0: heading detection -----------------------------------------------
+
+10754_136196  parsed       # real "## BIBLIOGRAPHY" at EOF; the "## BIBLIOGRAPHY 77" TOC line is skipped (empty body)
+10754_136731  parsed       # "## BIBLIOGRAPHYBIBLIOGRAPHY" duplicate heading collapsed; empty first "## BIBLIOGRAPHY" skipped
+10754_209388  parsed       # "## Bibliography/References" -- slash-joined heading
+10754_136671  no-heading   # true negative: no reference section, only TOC fragments
+10754_626265  no-heading   # true negative: appendices run to EOF, no reference section
+
+# --- Stage 1: entry segmentation --------------------------------------------
+
+# numbered "- N ..." / "- [N] ..." / "- (N) ..." bullets (the KAUST norm)
+10754_133211  parsed       # "- N"; source also has mangled "2. 11" markers mid-list
+10754_133952  parsed
+10754_133969  parsed
+10754_134733  parsed
+10754_134735  parsed       # one citation carries a DOI (ref 46)
+10754_136729  parsed       # "- [N] ..."
+10754_205789  parsed
+10754_698503  parsed       # "- (N) ..." paren enumerator after the bullet
+10754_704091  parsed       # bullets and "N." lines mixed; numbering restarts per author-letter group
+
+# bare "N." / "N)" numbered lines, no dash
+10754_136957  parsed
+10754_134734  parsed       # per-chapter lists, each restarting at "1." -> renumbered sequentially
+10754_630102  parsed       # "N." then a stray tab; tab-mangled entry bodies
+
+# run-on: whole list on one line, kept "N." / "[N]" markers
+10754_662135  parsed       # "1. Narayan ... 2. Dunn ..." split on the inline markers
+
+# blank-line-separated, author-first, no marker (some entries glued together,
+# nbsp / soft-hyphen / hard-wrap mangled)
+10754_136192  parsed
+10754_136193  parsed       # "Alkan, H., Y. Cinar ..."
+10754_136209  parsed
+10754_136692  parsed
+
+# whole list run together with no separators at all
+10754_666184  parsed       # "Surname, I., ... YEAR. Title." split on author-first boundaries
