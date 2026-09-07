@@ -17,6 +17,11 @@
 10754_136196  parsed       # real "## BIBLIOGRAPHY" at EOF; the "## BIBLIOGRAPHY 77" TOC line is skipped (empty body)
 10754_136731  parsed       # "## BIBLIOGRAPHYBIBLIOGRAPHY" duplicate heading collapsed; empty first "## BIBLIOGRAPHY" skipped
 10754_209388  parsed       # "## Bibliography/References" -- slash-joined heading
+10754_673846  parsed       # "## LIST OF REFERENCES"
+10754_686464  parsed       # "## OVERALL REFERENCES" -- adjective before the core word
+10754_690149  parsed       # "## BIBLIOGRAP Y" -- dropped 'H'
+10754_704932  parsed       # "## APENDIX B: References" -- misspelt label prefix
+10754_322232  parsed       # "## REFERENCES" then "## \_\_\_" (a rule as a heading) doesn't end the section
 10754_136671  no-heading   # true negative: no reference section, only TOC fragments
 10754_626265  no-heading   # true negative: appendices run to EOF, no reference section
 
@@ -40,6 +45,11 @@
 
 # run-on: whole list on one line, kept "N." / "[N]" markers
 10754_662135  parsed       # "1. Narayan ... 2. Dunn ..." split on the inline markers
+
+# Markdown table -- "| 1. | citation |" rows
+10754_552679  parsed       # clean "| N. | citation |", with wrapped rows
+10754_273095  parsed       # OCR-garbled enumerator column ("1)", "(2)", "[3]") -> renumbered
+10754_273076  parsed       # references then a plagiarism report as a "| PAGE1 | PAGE2 |" table -- report cut off
 
 # blank-line-separated, author-first, no marker (some entries glued together,
 # nbsp / soft-hyphen / hard-wrap mangled)

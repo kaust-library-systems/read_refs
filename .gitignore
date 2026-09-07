@@ -1,6 +1,8 @@
 # Local things to ignore
 .DS_Store
 data/
+batches/
+*.swp
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

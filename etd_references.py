@@ -39,34 +39,44 @@ from pathlib import Path
 # States" or "Reference Frame".
 HEADING_RE = re.compile(r'^(#{1,6})\s+(.*)$')
 
-# Heading text has its whitespace stripped out before this is applied (the
-# conversion sometimes splits a word with a stray tab, e.g. "BIBLIOGRAP\tHY"),
-# so the multi-word alternates use \s* rather than \s+.
-# The fuzzy stem tolerates the letters the conversion drops or inserts near the
-# front of the word too ("REFRENCES", "REEFERENCE").
+# Heading text has its whitespace (and "+", used as a word separator by some
+# conversions) stripped out before this is applied, so alternates need no
+# inter-word gaps. The fuzzy stems tolerate letters the conversion drops near
+# the front ("REFRENCES", "REEFERENCE") or in the middle ("BIBLIOGRAPY").
 _REF_WORD = r'RE\w?FER\w{0,3}NCES?'
+_BIB_WORD = r'BIBLIOGRAPH?Y'
+_REF_CORE = rf'(?:{_REF_WORD}|{_BIB_WORD}|WORKS\s*CITED|LITERATURE\s*CITED)'
+# Adjectives a heading puts in front of the core word ("OVERALL REFERENCES",
+# "Uncategorized References" -- the latter an EndNote export artifact).
+_REF_ADJ = (
+    r'(?:OVERALL|SELECTED|COMPLETE|FULL|ADDITIONAL|UNCATEGORIZED'
+    r'|CONSOLIDATED|COMBINED|MAIN|GENERAL|PRIMARY|KEY)'
+)
+_REF_PHRASE = (
+    r'(?:LISTOF)?'
+    rf'(?:{_REF_ADJ})*{_REF_CORE}'
+    r'(?:/?(?:LIST|CITED))?'
+)
 REFERENCES_HEADING_TEXT_RE = re.compile(
-    r'^(?:'
-    rf'{_REF_WORD}(?:/BIBLIOGRAPHY)?'
-    rf'|BIBLIOGRAPHY(?:/{_REF_WORD})?'
-    r'|WORKS\s*CITED|LITERATURE\s*CITED'
-    r')'
-    r'[\s.:]*\d{0,4}[\s.:]*$',
+    rf'^{_REF_PHRASE}'
+    rf'(?:/?(?:{_REF_ADJ})*{_REF_PHRASE})?'  # doubled / slash-joined
+    r'[\s.:;\'"()]*\d{0,4}[\s.:;\'"()]*$',
     re.IGNORECASE,
 )
 
 # A leading chapter/section label the heading often carries in per-chapter
 # bibliographies, e.g. "## 2.8 REFERENCES", "## Chapter 5: References",
 # "## 9 - References", "## VI. Bibliography", "## 7.1 Chapter 1 references",
-# "## Supplementary references". Stripped (up to twice) before matching so the
-# anchored REFERENCES_HEADING_TEXT_RE still applies.
+# "## 6.BIBLIOGRAPHY", "## APENDIX B: References", "## Supplementary
+# references". Stripped (up to twice) before matching so the anchored
+# REFERENCES_HEADING_TEXT_RE still applies.
 HEADING_LABEL_PREFIX_RE = re.compile(
     r'^(?:'
-    r'(?:chapter|appendix|part|section)\s+[\w.]+'
+    r'(?:chapter|app?endix|part|section|annex)\s+[\w.]+'
     r'|supplement\w*|additional'
     r'|[IVXLC]{1,7}'
     r'|\d+(?:\.\d+)*'
-    r')[.:)]?\s*[-–—]?\s+',
+    r')(?:[.:)]\s*|\s+)[-–—]?\s*',
     re.IGNORECASE,
 )
 
@@ -77,14 +87,14 @@ def _normalize_heading_text(heading_body: str) -> str:
 
     * drop one or two leading chapter/section labels ("2.8", "Chapter 5:",
       "VI.", "7.1 Chapter 1");
-    * strip out all internal whitespace, so a word the conversion split with a
-      stray tab still matches ("BIBLIOGRAP\tHY" -> "BIBLIOGRAPHY", 10754_630102);
+    * strip out internal whitespace and "+" (word separators the conversion
+      emits), so "BIBLIOGRAP\tHY" and "+BIBLIOGRAPHY+" still match;
     * collapse an immediately-repeated heading ("BIBLIOGRAPHYBIBLIOGRAPHY" ->
       "BIBLIOGRAPHY"), another duplication the conversion emits (10754_136731).
     """
     text = HEADING_LABEL_PREFIX_RE.sub('', heading_body.strip(), count=1)
     text = HEADING_LABEL_PREFIX_RE.sub('', text.strip(), count=1)
-    text = re.sub(r'\s+', '', text)
+    text = re.sub(r'[\s+]+', '', text)
     half = len(text) // 2
     if half and text[:half] == text[half:]:
         text = text[:half]
@@ -92,14 +102,35 @@ def _normalize_heading_text(heading_body: str) -> str:
 
 
 def _section_body(lines: list[str], start_idx: int, heading_level: int) -> str:
-    """Text from start_idx up to the next heading of equal-or-shallower level."""
+    """Text from start_idx up to the next heading of equal-or-shallower level.
+
+    A heading with no letter or digit in it -- "## \\_\\_\\_\\_", "## ==="; a
+    horizontal rule the conversion rendered as a heading -- does not end the
+    section (10754_322232).
+    """
     end_idx = len(lines)
     for i in range(start_idx, len(lines)):
         hm = HEADING_RE.match(lines[i])
-        if hm and len(hm.group(1)) <= heading_level:
+        if hm and len(hm.group(1)) <= heading_level and re.search(r'[^\W_]', hm.group(2)):
             end_idx = i
             break
+        if _REPORT_TAIL_RE.match(lines[i]):
+            end_idx = i  # a Turnitin report / bare page dump got appended
+            break
     return "\n".join(lines[start_idx:end_idx]).strip()
+
+
+# The reference section is often the last real section, so a plagiarism report
+# or a bare "PAGE 1 / PAGE 2 / ..." page dump with no heading gets swept in
+# after it (10754_273076, 10754_583278). Cut the section at the first such line.
+_REPORT_TAIL_RE = re.compile(
+    r'^\s*\|?\s*(?:'
+    r'ORIGINALITY\s+REPORT|SIMILARITY\s+INDEX|SIMILARITY\s+REPORT'
+    r'|FINAL\s*GRADE|GENERAL\s*COMMENTS'
+    r'|PAGE\s?\d{1,4}'
+    r')\s*\|?\s*$',
+    re.IGNORECASE,
+)
 
 
 def extract_references_section(markdown_text: str) -> str:
@@ -136,11 +167,11 @@ def extract_references_section(markdown_text: str) -> str:
 #
 # Conversions render the reference list in wildly different shapes -- numbered
 # or plain bullets, bare "1." lines, "[1]"/"(1)" markers (on their own lines or
-# strung along one unbroken line), or nothing but a blank line between
-# author-first entries. segment_entries() runs three recognizers in turn --
-# _segment_marked_lines, _segment_inline_marked, _segment_unmarked -- and takes
-# the first that produces a plausible result; each returns [] when the section
-# clearly isn't its shape.
+# strung along one unbroken line), a Markdown table, or nothing but a blank
+# line between author-first entries. segment_entries() runs the recognizers in
+# turn -- _segment_table, _segment_marked_lines, _segment_inline_marked,
+# _segment_unmarked -- and takes the first that produces a plausible result;
+# each returns [] when the section clearly isn't its shape.
 
 # A line that is *only* a number (typically a leaked PDF page footer/header
 # that ended up on its own line, e.g. "69").
@@ -174,6 +205,12 @@ _INLINE_MARKER_RE = re.compile(
 
 # A plain bullet with no number, e.g. "- Author, Title...".
 _BULLET_RE = re.compile(r'^\s*[-*•·‣▪]\s+')
+
+# Markdown table rows: a row of "|"-separated cells, and the "|---|---|"
+# separator line under the header.
+_TABLE_ROW_RE = re.compile(r'^\s*\|(.+)\|\s*$')
+_TABLE_SEP_RE = re.compile(r'^[\s|:-]+$')
+_TABLE_ENUMERATOR_RE = re.compile(r'^[\[(]?\d{1,4}[\])]?[.)]?$')
 
 _YEAR_RE = re.compile(r'\b(?:1[89]\d\d|20\d\d)\b')
 
@@ -235,6 +272,7 @@ def segment_entries(section_text: str) -> list[tuple[int, str]]:
     """Split the references section into (entry_number, raw_text) tuples."""
     text = _clean_section(section_text)
     for recognizer in (
+        _segment_table,
         _segment_marked_lines,
         _segment_inline_marked,
         _segment_unmarked,
@@ -243,6 +281,59 @@ def segment_entries(section_text: str) -> list[tuple[int, str]]:
         if entries:
             return entries
     return []
+
+
+def _segment_table(text: str) -> list[tuple[int, str]]:
+    """
+    The reference list rendered as a Markdown table -- "| 1. | citation |" or
+    a single citation column. The enumerator column is often OCR garbage
+    ("1)", "(2)", "[3]", "3)") so entries are renumbered sequentially; a row
+    with an empty (or non-enumerator) first cell continues the previous entry.
+    """
+    entries: list[str] = []
+    seen_enum = False
+    table_lines = other_lines = 0
+
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        m = _TABLE_ROW_RE.match(line)
+        if not m:
+            other_lines += 1
+            continue
+        table_lines += 1
+        if _TABLE_SEP_RE.match(line):
+            continue
+
+        cells = [c.strip() for c in m.group(1).split('|')]
+        enum = cells[0] if _TABLE_ENUMERATOR_RE.match(cells[0]) else None
+        content_cells = cells[1:] if (enum is not None or cells[0] == '') else cells
+        content_cells = [c for c in content_cells if c]
+        if not content_cells:
+            continue
+        # A wrapped row repeats its text in every column; keep it once.
+        content = (
+            content_cells[0]
+            if len(set(content_cells)) == 1
+            else ' '.join(content_cells)
+        )
+
+        if enum is not None:
+            seen_enum = True
+        if enum is not None or not seen_enum or not entries:
+            entries.append(content)
+        else:
+            entries[-1] += ' ' + content
+
+    if len(entries) < _MIN_ENTRIES or table_lines < max(_MIN_ENTRIES, other_lines):
+        return []
+    entries = [normalize_whitespace(e) for e in entries]
+    # Reject a table that isn't a reference list -- e.g. a plagiarism report
+    # rendered as a column of "PAGE1", "PAGE2", ... rows (10754_273076).
+    reference_shaped = sum(len(e) > 40 or bool(_YEAR_RE.search(e)) for e in entries)
+    if reference_shaped < 0.6 * len(entries):
+        return []
+    return list(enumerate(entries, start=1))
 
 
 def _segment_marked_lines(text: str) -> list[tuple[int, str]]:
