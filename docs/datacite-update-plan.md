@@ -8,9 +8,9 @@ Counts are a snapshot and will drift as new ETDs are added.
 
 `read_refs` extracts the reference lists of KAUST ETDs. The aim is to feed the
 extracted references back to DataCite, so that the impact of ETDs is captured
-and the metadata can be reused by others. Maria Levchenko (DataCite) suggested
-doing this by updating each ETD's DOI metadata with `relatedIdentifiers`, using
-the DataCite REST API.
+and the metadata can be reused by others. DataCite suggested doing this by
+updating each ETD's DOI metadata with `relatedIdentifiers`, using the DataCite
+REST API.
 
 Because these are public, institutional persistent-identifier records, the
 priority is not to damage existing entries. Every step below is designed so
