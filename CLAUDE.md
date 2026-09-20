@@ -18,7 +18,10 @@ real-world defects each pattern defends against.
 ## Data locations
 
 - Input: `/data/exports/etd_md/` — Markdown files, one per thesis, in subdirectories
-- Output: `/data/exports/etd_refs/` — extracted references as text
+- Output: `/data/exports/etd_refs/` — the references already extracted from the
+  ETDs, one `<id>.txt` per thesis (header comment line, then one reference per
+  line with DOI/ISBN tagged in `[brackets]`). Written by `batch_extract.py`;
+  override the location with `$ETD_REFS_DIR`.
 
 Any `data/` directory inside the repo is scratch for testing only (see commit
 `6fa5904`); real corpora live under `/data/exports/`.
