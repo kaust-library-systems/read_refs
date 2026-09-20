@@ -473,34 +473,67 @@ def _segment_unmarked(text: str) -> list[tuple[int, str]]:
 # --------------------------------------------------------------------------
 
 # DOIs: standard "10.XXXX/suffix" pattern. Suffix chars per the DOI spec are
-# permissive, so we stop at whitespace or a closing bracket/paren/quote.
-DOI_RE = re.compile(
-    r'\b10\.\d{4,9}/[^\s"\'<>)\]}]+',
-    re.IGNORECASE,
-)
+# permissive, so we stop at whitespace or a closing bracket/quote. A "(" is
+# accepted only together with its matching ")": real DOIs contain balanced
+# groups ("10.1016/S1389-5567(03)00026-1"; 2,600+ in the ETD corpus), but a
+# lone ")" is usually the parenthesis closing the citation
+# ("(doi:10.1002/bies.201100045)."), which must not be swept in. The two
+# alternatives start with different characters, so matching stays linear.
+DOI_RE = re.compile(r'\b10\.\d{4,9}/(?:[^\s"\'<>()\]}]|\([^\s()]*\))+')
 
 # ISBN-10 or ISBN-13, with or without hyphens/spaces. We require the literal
 # "ISBN" prefix when searching (rather than making it optional) -- otherwise
 # an unanchored regex search will happily latch onto the first digit run it
 # finds (e.g. a publication year) before ever reaching the real identifier.
+#
+# The number itself has a fixed digit count (10, or 978/979 + 10) and must not
+# be followed by another digit. With variable-length digit groups the match
+# swallowed whatever came next: "ISBN 019-855370-6 1984" read as 11 digits and
+# the ISBN was dropped. Separators may be a hyphen, a space, or both ("ISBN
+# 0 7484 0729 -4"), and the prefix may be plural or followed by a space before
+# the colon ("ISBNs: 0-471-49799-1", "ISBN : 978-3-540-35305-8").
+_ISBN_SEP = r"[- ]{0,2}"
 ISBN_RE = re.compile(
-    r"ISBN(?:-1[03])?:?\s*"
-    r"((?:97[89][- ]?)?\d{1,5}[- ]?\d{1,7}[- ]?\d{1,7}[- ]?[\dXx])",
+    r"ISBNs?(?:-1[03])?\s*(?::\s*)?"
+    rf"((?:97[89]{_ISBN_SEP})?\d(?:{_ISBN_SEP}\d){{8}}{_ISBN_SEP}[\dXx])(?!\d)",
     re.IGNORECASE,
 )
 
 
 def clean_doi(raw: str) -> str:
-    # Trailing punctuation often gets swept in (periods, commas).
-    return raw.rstrip(".,;")
+    """Normalise a matched DOI: unescape Markdown underscores, trim trailing junk."""
+    # Markdown escapes an underscore: "10.1007/978-1-62703-462-3\_14". The DOI
+    # itself has a plain "_", so the escaped form would never match a record.
+    doi = raw.replace("\\_", "_")
+    # Trailing punctuation often gets swept in: periods, commas, a colon before
+    # the title, or a stray line-break backslash ("10.1116/6.0002144.\").
+    return doi.rstrip(".,;:\\")
 
 
 def clean_isbn(raw: str) -> str:
+    """Drop hyphens and spaces and upper-case a trailing "x" check digit."""
     return re.sub(r"[- ]", "", raw).upper()
 
 
-def is_plausible_isbn(digits_and_x: str) -> bool:
-    return len(digits_and_x) in (10, 13)
+def _isbn10_check_ok(isbn: str) -> bool:
+    weights = range(10, 0, -1)
+    values = [10 if char == "X" else int(char) for char in isbn]
+    return sum(w * v for w, v in zip(weights, values)) % 11 == 0
+
+
+def _isbn13_check_ok(isbn: str) -> bool:
+    weights = [1, 3] * 6 + [1]
+    values = [int(char) for char in isbn]
+    return sum(w * v for w, v in zip(weights, values)) % 10 == 0
+
+
+def is_valid_isbn(digits_and_x: str) -> bool:
+    """True for a cleaned ISBN-10 or ISBN-13 whose check digit is correct."""
+    if re.fullmatch(r"[0-9]{9}[0-9X]", digits_and_x):
+        return _isbn10_check_ok(digits_and_x)
+    if re.fullmatch(r"[0-9]{13}", digits_and_x):
+        return _isbn13_check_ok(digits_and_x)
+    return False
 
 
 @dataclass
@@ -516,15 +549,18 @@ class Reference:
 
 
 def extract_identifiers(entry_text: str) -> tuple[str | None, str | None]:
+    """Return (doi, isbn) for one reference entry; None where there is none."""
     doi_match = DOI_RE.search(entry_text)
     doi = clean_doi(doi_match.group(0)) if doi_match else None
 
+    # Try every ISBN-prefixed candidate and keep the first with a valid check
+    # digit, so one garbled number does not hide a good one later in the entry.
     isbn = None
-    isbn_match = ISBN_RE.search(entry_text)
-    if isbn_match:
+    for isbn_match in ISBN_RE.finditer(entry_text):
         candidate = clean_isbn(isbn_match.group(1))
-        if is_plausible_isbn(candidate):
+        if is_valid_isbn(candidate):
             isbn = candidate
+            break
 
     return doi, isbn
 
