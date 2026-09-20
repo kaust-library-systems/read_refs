@@ -38,7 +38,7 @@ uv run tests/run_samples.py -v                        # regression check over th
 
 ### Test subset
 
-`tests/samples.txt` pins ~23 ETD IDs from the corpus, each tagged with its
+`tests/samples.txt` pins 31 ETD IDs from the corpus, each tagged with its
 expected outcome (`parsed` / `no-segment` / `no-heading`) and a note on the
 format variant it covers. When a change makes a document parse differently,
 flip its `expected` in the same commit. `tests/run_samples.py` reads the files
