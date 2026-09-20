@@ -36,8 +36,9 @@ uv run ruff format                                    # format
 uv run tests/run_samples.py -v                        # regression check over the pinned ETD subset
 ```
 
-`main.py` is the unused `uv init` stub — the real entry point is
-`etd_references.py`.
+`etd_references.py` is the parser and single-file CLI; `batch_extract.py`
+runs it over the corpus in batches of 100 ids (`uv run batch_extract.py --list`
+shows the batches, `test` runs the first 25).
 
 ### Test subset
 
