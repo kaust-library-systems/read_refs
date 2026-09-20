@@ -18,6 +18,7 @@ import re
 import sys
 from dataclasses import dataclass, asdict
 from pathlib import Path
+from typing import NoReturn
 
 
 # --------------------------------------------------------------------------
@@ -583,18 +584,49 @@ def parse_etd_references(markdown_text: str) -> list[Reference]:
     return references
 
 
+# Exit status: 0 on success, 1 when the document ran but yielded no references
+# (no heading, or no entries could be segmented), 2 when the run could not
+# happen at all (unreadable input, unwritable output, bad arguments).
+EXIT_NO_REFERENCES = 1
+EXIT_CANNOT_RUN = 2
+
+
+def _fail(message: str) -> NoReturn:
+    """Print a one-line error to stderr and exit, without a traceback."""
+    print(f"etd_references.py: error: {message}", file=sys.stderr)
+    sys.exit(EXIT_CANNOT_RUN)
+
+
+def _is_same_file(a: Path, b: Path) -> bool:
+    """True if both paths lead to the same file, following symlinks."""
+    try:
+        return a.resolve() == b.resolve()
+    except (OSError, RuntimeError):  # RuntimeError: symlink loop (Python < 3.13)
+        return False
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("markdown_file", type=Path)
     parser.add_argument("--json", type=Path, help="Write results to this JSON file")
     args = parser.parse_args()
 
-    text = args.markdown_file.read_text(encoding="utf-8")
+    # Checked before reading: "--json thesis.md thesis.md" would otherwise
+    # replace the Markdown source with JSON.
+    if args.json and _is_same_file(args.json, args.markdown_file):
+        _fail(f"--json would overwrite the input file {args.markdown_file}")
+
+    try:
+        text = args.markdown_file.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        _fail(f"{args.markdown_file} is not valid UTF-8 (bad byte at {exc.start})")
+    except OSError as exc:
+        _fail(f"cannot read {args.markdown_file}: {exc.strerror or exc}")
 
     section = extract_references_section(text)
     if not section:
         print("No References-like heading found in this document.", file=sys.stderr)
-        sys.exit(1)
+        sys.exit(EXIT_NO_REFERENCES)
 
     refs = parse_etd_references(text)
 
@@ -606,7 +638,7 @@ def main():
             file=sys.stderr,
         )
         print(section, file=sys.stderr)
-        sys.exit(1)
+        sys.exit(EXIT_NO_REFERENCES)
 
     with_id = [r for r in refs if r.has_identifier]
     print(f"Parsed {len(refs)} reference(s); {len(with_id)} with a DOI/ISBN.\n")
@@ -622,10 +654,12 @@ def main():
         print(f"{r.number:>3}.{tag_str} {preview}")
 
     if args.json:
-        args.json.write_text(
-            json.dumps([asdict(r) for r in refs], indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        # Serialise first, so a failure here cannot leave a truncated file.
+        json_text = json.dumps([asdict(r) for r in refs], indent=2, ensure_ascii=False)
+        try:
+            args.json.write_text(json_text, encoding="utf-8")
+        except OSError as exc:
+            _fail(f"cannot write {args.json}: {exc.strerror or exc}")
         print(f"\nWrote {args.json}")
 
 

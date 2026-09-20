@@ -85,9 +85,13 @@ orchestrates four stages, each independently testable:
 4. Results are collected into `Reference` dataclasses (`number`, `raw_text`,
    `doi`, `isbn`, `has_identifier`).
 
-`main()` adds CLI parsing and human-readable / JSON reporting, and exits
-non-zero with a diagnostic dump when the heading is found but no entries
-segment (the likely sign of an unhandled entry format).
+`main()` adds CLI parsing and human-readable / JSON reporting. It exits 1
+(`EXIT_NO_REFERENCES`) when there is no heading, or when the heading is found
+but no entries segment (the likely sign of an unhandled entry format; the raw
+section is dumped to stderr). It exits 2 (`EXIT_CANNOT_RUN`) through `_fail()`
+with a one-line message for I/O problems: unreadable or non-UTF-8 input, an
+unwritable `--json` path, or `--json` resolving to the input file. Keep those
+two statuses distinct.
 
 ## Conventions
 

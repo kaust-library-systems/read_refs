@@ -33,10 +33,13 @@ DOI or ISBN), then one line per reference. With `--json`, the full result is
 also written to a file as a list of objects with the fields `number`,
 `raw_text`, `doi` and `isbn`.
 
-The command exits with status 1 if no References heading is found, or if a
-heading is found but no entries can be split out of it. In the second case the
-raw section is printed to stderr so you can see the format that was not
-recognised.
+Exit status:
+
+| Status | Meaning |
+|---|---|
+| 0 | References were parsed. |
+| 1 | The file was read but yielded no references: no References heading, or a heading whose entries could not be split. In the second case the raw section is printed to stderr so you can see the format that was not recognised. |
+| 2 | The run could not happen: the input is missing, unreadable or not valid UTF-8, the `--json` file cannot be written, or `--json` points at the input file itself. A one-line message goes to stderr. |
 
 ### A whole corpus, in batches
 
