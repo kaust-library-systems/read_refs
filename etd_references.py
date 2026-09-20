@@ -60,7 +60,11 @@ _REF_PHRASE = (
 REFERENCES_HEADING_TEXT_RE = re.compile(
     rf'^{_REF_PHRASE}'
     rf'(?:/?(?:{_REF_ADJ})*{_REF_PHRASE})?'  # doubled / slash-joined
-    r'[\s.:;\'"()]*\d{0,4}[\s.:;\'"()]*$',
+    # The digits are optional as a group (\d{1,4} inside it), not \d{0,4}: with
+    # \d{0,4} the two punctuation runs can split "...." between them in
+    # every possible way, so a non-matching heading like "REFERENCES" + 16000
+    # dots + "x" took quadratic time to reject.
+    r'[\s.:;\'"()]*(?:\d{1,4}[\s.:;\'"()]*)?$',
     re.IGNORECASE,
 )
 
@@ -123,12 +127,17 @@ def _section_body(lines: list[str], start_idx: int, heading_level: int) -> str:
 # The reference section is often the last real section, so a plagiarism report
 # or a bare "PAGE 1 / PAGE 2 / ..." page dump with no heading gets swept in
 # after it (10754_273076, 10754_583278). Cut the section at the first such line.
+#
+# The optional "|" (a table-cell border) is followed by its own whitespace
+# inside the group, rather than written as \s*\|?\s*: when there is no pipe, the
+# two \s* runs overlap, so a line of 16000 spaces + "x" took quadratic time to
+# reject.
 _REPORT_TAIL_RE = re.compile(
-    r'^\s*\|?\s*(?:'
+    r'^\s*(?:\|\s*)?(?:'
     r'ORIGINALITY\s+REPORT|SIMILARITY\s+INDEX|SIMILARITY\s+REPORT'
     r'|FINAL\s*GRADE|GENERAL\s*COMMENTS'
     r'|PAGE\s?\d{1,4}'
-    r')\s*\|?\s*$',
+    r')\s*(?:\|\s*)?$',
     re.IGNORECASE,
 )
 
