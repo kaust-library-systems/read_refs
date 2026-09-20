@@ -37,29 +37,29 @@ from pathlib import Path
 # leaders a table-of-contents line rendered as a heading carries. Without the
 # tail anchor the fuzzy stem also swallows unrelated headings like "Reference
 # States" or "Reference Frame".
-HEADING_RE = re.compile(r'^(#{1,6})\s+(.*)$')
+HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 
 # Heading text has its whitespace (and "+", used as a word separator by some
 # conversions) stripped out before this is applied, so alternates need no
 # inter-word gaps. The fuzzy stems tolerate letters the conversion drops near
 # the front ("REFRENCES", "REEFERENCE") or in the middle ("BIBLIOGRAPY").
-_REF_WORD = r'RE\w?FER\w{0,3}NCES?'
-_BIB_WORD = r'BIBLIOGRAPH?Y'
-_REF_CORE = rf'(?:{_REF_WORD}|{_BIB_WORD}|WORKS\s*CITED|LITERATURE\s*CITED)'
+_REF_WORD = r"RE\w?FER\w{0,3}NCES?"
+_BIB_WORD = r"BIBLIOGRAPH?Y"
+_REF_CORE = rf"(?:{_REF_WORD}|{_BIB_WORD}|WORKS\s*CITED|LITERATURE\s*CITED)"
 # Adjectives a heading puts in front of the core word ("OVERALL REFERENCES",
 # "Uncategorized References" -- the latter an EndNote export artifact).
 _REF_ADJ = (
-    r'(?:OVERALL|SELECTED|COMPLETE|FULL|ADDITIONAL|UNCATEGORIZED'
-    r'|CONSOLIDATED|COMBINED|MAIN|GENERAL|PRIMARY|KEY)'
+    r"(?:OVERALL|SELECTED|COMPLETE|FULL|ADDITIONAL|UNCATEGORIZED"
+    r"|CONSOLIDATED|COMBINED|MAIN|GENERAL|PRIMARY|KEY)"
 )
 _REF_PHRASE = (
-    r'(?:LISTOF)?'
-    rf'(?:{_REF_ADJ})*{_REF_CORE}'
-    r'(?:/?(?:LIST|CITED))?'
+    r"(?:LISTOF)?"
+    rf"(?:{_REF_ADJ})*{_REF_CORE}"
+    r"(?:/?(?:LIST|CITED))?"
 )
 REFERENCES_HEADING_TEXT_RE = re.compile(
-    rf'^{_REF_PHRASE}'
-    rf'(?:/?(?:{_REF_ADJ})*{_REF_PHRASE})?'  # doubled / slash-joined
+    rf"^{_REF_PHRASE}"
+    rf"(?:/?(?:{_REF_ADJ})*{_REF_PHRASE})?"  # doubled / slash-joined
     # The digits are optional as a group (\d{1,4} inside it), not \d{0,4}: with
     # \d{0,4} the two punctuation runs can split "...." between them in
     # every possible way, so a non-matching heading like "REFERENCES" + 16000
@@ -75,12 +75,12 @@ REFERENCES_HEADING_TEXT_RE = re.compile(
 # references". Stripped (up to twice) before matching so the anchored
 # REFERENCES_HEADING_TEXT_RE still applies.
 HEADING_LABEL_PREFIX_RE = re.compile(
-    r'^(?:'
-    r'(?:chapter|app?endix|part|section|annex)\s+[\w.]+'
-    r'|supplement\w*|additional'
-    r'|[IVXLC]{1,7}'
-    r'|\d+(?:\.\d+)*'
-    r')(?:[.:)]\s*|\s+)[-–—]?\s*',
+    r"^(?:"
+    r"(?:chapter|app?endix|part|section|annex)\s+[\w.]+"
+    r"|supplement\w*|additional"
+    r"|[IVXLC]{1,7}"
+    r"|\d+(?:\.\d+)*"
+    r")(?:[.:)]\s*|\s+)[-–—]?\s*",
     re.IGNORECASE,
 )
 
@@ -96,9 +96,9 @@ def _normalize_heading_text(heading_body: str) -> str:
     * collapse an immediately-repeated heading ("BIBLIOGRAPHYBIBLIOGRAPHY" ->
       "BIBLIOGRAPHY"), another duplication the conversion emits (10754_136731).
     """
-    text = HEADING_LABEL_PREFIX_RE.sub('', heading_body.strip(), count=1)
-    text = HEADING_LABEL_PREFIX_RE.sub('', text.strip(), count=1)
-    text = re.sub(r'[\s+]+', '', text)
+    text = HEADING_LABEL_PREFIX_RE.sub("", heading_body.strip(), count=1)
+    text = HEADING_LABEL_PREFIX_RE.sub("", text.strip(), count=1)
+    text = re.sub(r"[\s+]+", "", text)
     half = len(text) // 2
     if half and text[:half] == text[half:]:
         text = text[:half]
@@ -115,7 +115,11 @@ def _section_body(lines: list[str], start_idx: int, heading_level: int) -> str:
     end_idx = len(lines)
     for i in range(start_idx, len(lines)):
         hm = HEADING_RE.match(lines[i])
-        if hm and len(hm.group(1)) <= heading_level and re.search(r'[^\W_]', hm.group(2)):
+        if (
+            hm
+            and len(hm.group(1)) <= heading_level
+            and re.search(r"[^\W_]", hm.group(2))
+        ):
             end_idx = i
             break
         if _REPORT_TAIL_RE.match(lines[i]):
@@ -133,11 +137,11 @@ def _section_body(lines: list[str], start_idx: int, heading_level: int) -> str:
 # two \s* runs overlap, so a line of 16000 spaces + "x" took quadratic time to
 # reject.
 _REPORT_TAIL_RE = re.compile(
-    r'^\s*(?:\|\s*)?(?:'
-    r'ORIGINALITY\s+REPORT|SIMILARITY\s+INDEX|SIMILARITY\s+REPORT'
-    r'|FINAL\s*GRADE|GENERAL\s*COMMENTS'
-    r'|PAGE\s?\d{1,4}'
-    r')\s*(?:\|\s*)?$',
+    r"^\s*(?:\|\s*)?(?:"
+    r"ORIGINALITY\s+REPORT|SIMILARITY\s+INDEX|SIMILARITY\s+REPORT"
+    r"|FINAL\s*GRADE|GENERAL\s*COMMENTS"
+    r"|PAGE\s?\d{1,4}"
+    r")\s*(?:\|\s*)?$",
     re.IGNORECASE,
 )
 
@@ -184,19 +188,19 @@ def extract_references_section(markdown_text: str) -> str:
 
 # A line that is *only* a number (typically a leaked PDF page footer/header
 # that ended up on its own line, e.g. "69").
-STRAY_PAGE_NUMBER_RE = re.compile(r'^\s*\d{1,4}\s*$')
+STRAY_PAGE_NUMBER_RE = re.compile(r"^\s*\d{1,4}\s*$")
 
 # Leading entry enumerator at the start of a line, in the forms seen across
 # conversions: "- 12", "- [12]", "[12]", "12.", "12)", and "2. 12" (a leaked
 # chapter number in front of the real one). Requiring whitespace right after
 # the enumerator keeps a DOI ("10.1234/..") from matching.
 _LINE_ENUMERATOR_RE = re.compile(
-    r'^\s*(?:'
-    r'\d{1,3}[.)]\s+(\d{1,4})'
-    r'|-\s*[\[(]?(\d{1,4})[\])]?[.)]?'
-    r'|[\[(](\d{1,4})[\])]'
-    r'|(\d{1,4})[.)]'
-    r')(?=\s)\s*'
+    r"^\s*(?:"
+    r"\d{1,3}[.)]\s+(\d{1,4})"
+    r"|-\s*[\[(]?(\d{1,4})[\])]?[.)]?"
+    r"|[\[(](\d{1,4})[\])]"
+    r"|(\d{1,4})[.)]"
+    r")(?=\s)\s*"
 )
 
 # How far ahead of the running count an enumerator may jump and still be
@@ -213,15 +217,15 @@ _INLINE_MARKER_RE = re.compile(
 )
 
 # A plain bullet with no number, e.g. "- Author, Title...".
-_BULLET_RE = re.compile(r'^\s*[-*•·‣▪]\s+')
+_BULLET_RE = re.compile(r"^\s*[-*•·‣▪]\s+")
 
 # Markdown table rows: a row of "|"-separated cells, and the "|---|---|"
 # separator line under the header.
-_TABLE_ROW_RE = re.compile(r'^\s*\|(.+)\|\s*$')
-_TABLE_SEP_RE = re.compile(r'^[\s|:-]+$')
-_TABLE_ENUMERATOR_RE = re.compile(r'^[\[(]?\d{1,4}[\])]?[.)]?$')
+_TABLE_ROW_RE = re.compile(r"^\s*\|(.+)\|\s*$")
+_TABLE_SEP_RE = re.compile(r"^[\s|:-]+$")
+_TABLE_ENUMERATOR_RE = re.compile(r"^[\[(]?\d{1,4}[\])]?[.)]?$")
 
-_YEAR_RE = re.compile(r'\b(?:1[89]\d\d|20\d\d)\b')
+_YEAR_RE = re.compile(r"\b(?:1[89]\d\d|20\d\d)\b")
 
 # Boundary between two "Surname, I., ... YEAR. Title." entries that got glued
 # together: whitespace after a sentence/number, then a capitalised surname
@@ -234,8 +238,13 @@ _AUTHOR_BOUNDARY_RE = re.compile(
 
 # Non-breaking / thin spaces and soft hyphens the PDF text layer leaves behind.
 _UNICODE_SPACE = {
-    0xA0: ' ', 0x2007: ' ', 0x2009: ' ', 0x200A: ' ', 0x202F: ' ',
-    0x2028: '\n', 0x200B: '',
+    0xA0: " ",
+    0x2007: " ",
+    0x2009: " ",
+    0x200A: " ",
+    0x202F: " ",
+    0x2028: "\n",
+    0x200B: "",
 }
 
 _MIN_ENTRIES = 3  # a thesis reference list always has at least this many
@@ -243,20 +252,20 @@ _MIN_ENTRIES = 3  # a thesis reference list always has at least this many
 
 def normalize_whitespace(text: str) -> str:
     """Collapse runs of whitespace left over from PDF column justification."""
-    return re.sub(r'\s+', ' ', text).strip()
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _clean_section(text: str) -> str:
     text = text.translate(_UNICODE_SPACE)
     # A hyphenation-break soft hyphen often survives as "799-\xad-819".
-    return text.replace('-\xad-', '-').replace('\xad', '')
+    return text.replace("-\xad-", "-").replace("\xad", "")
 
 
 def _looks_like_reference(chunk: str) -> bool:
     chunk = chunk.strip()
     return (
         len(chunk) >= 25
-        and (chunk[:1].isalnum() or chunk[:1] in '"\'“')
+        and (chunk[:1].isalnum() or chunk[:1] in "\"'“")
         and _YEAR_RE.search(chunk) is not None
     )
 
@@ -264,7 +273,9 @@ def _looks_like_reference(chunk: str) -> bool:
 def _strip_leading_enumerator(chunk: str) -> str:
     """Drop a "1 " / "1. " / "[1] " left at the head of an entry once the list
     has already been split some other way."""
-    return re.sub(r'^(?:\[\d{1,3}\]|\(\d{1,3}\)|\d{1,3}[.)]?)\s+(?=\D)', '', chunk, count=1)
+    return re.sub(
+        r"^(?:\[\d{1,3}\]|\(\d{1,3}\)|\d{1,3}[.)]?)\s+(?=\D)", "", chunk, count=1
+    )
 
 
 def _finalize(numbered: list[tuple[int | None, str]]) -> list[tuple[int, str]]:
@@ -314,9 +325,9 @@ def _segment_table(text: str) -> list[tuple[int, str]]:
         if _TABLE_SEP_RE.match(line):
             continue
 
-        cells = [c.strip() for c in m.group(1).split('|')]
+        cells = [c.strip() for c in m.group(1).split("|")]
         enum = cells[0] if _TABLE_ENUMERATOR_RE.match(cells[0]) else None
-        content_cells = cells[1:] if (enum is not None or cells[0] == '') else cells
+        content_cells = cells[1:] if (enum is not None or cells[0] == "") else cells
         content_cells = [c for c in content_cells if c]
         if not content_cells:
             continue
@@ -324,7 +335,7 @@ def _segment_table(text: str) -> list[tuple[int, str]]:
         content = (
             content_cells[0]
             if len(set(content_cells)) == 1
-            else ' '.join(content_cells)
+            else " ".join(content_cells)
         )
 
         if enum is not None:
@@ -332,7 +343,7 @@ def _segment_table(text: str) -> list[tuple[int, str]]:
         if enum is not None or not seen_enum or not entries:
             entries.append(content)
         else:
-            entries[-1] += ' ' + content
+            entries[-1] += " " + content
 
     if len(entries) < _MIN_ENTRIES or table_lines < max(_MIN_ENTRIES, other_lines):
         return []
@@ -370,7 +381,7 @@ def _segment_marked_lines(text: str) -> list[tuple[int, str]]:
         num = int(next(g for g in enum.groups() if g is not None)) if enum else None
 
         if bullet:
-            rest = _strip_leading_enumerator(line[bullet.end():])
+            rest = _strip_leading_enumerator(line[bullet.end() :])
             entries.append([rest])
             numbers.append(None)
             bullet_starts += 1
@@ -378,7 +389,7 @@ def _segment_marked_lines(text: str) -> list[tuple[int, str]]:
             expected <= num <= expected + _ENUMERATOR_LOOKAHEAD
             or (num <= 3 and entries)
         ):
-            entries.append([line[enum.end():]])
+            entries.append([line[enum.end() :]])
             numbers.append(num)
             enum_starts += 1
             expected = num + 1
@@ -417,9 +428,7 @@ def _segment_inline_marked(text: str) -> list[tuple[int, str]]:
     steps = sum(b - a == 1 for a, b in zip(numbers, numbers[1:]))
     if numbers[0] > 30 or steps < 0.8 * (len(numbers) - 1):
         return []
-    return _finalize(
-        [(n, normalize_whitespace(b)) for n, b in zip(numbers, bodies)]
-    )
+    return _finalize([(n, normalize_whitespace(b)) for n, b in zip(numbers, bodies)])
 
 
 def _split_glued_entries(chunk: str) -> list[str]:
@@ -429,7 +438,9 @@ def _split_glued_entries(chunk: str) -> list[str]:
     if len(_YEAR_RE.findall(chunk)) < 3:
         return [chunk]
     parts = [p.strip() for p in _AUTHOR_BOUNDARY_RE.split(chunk) if p.strip()]
-    if len(parts) >= _MIN_ENTRIES and sum(map(_looks_like_reference, parts)) >= 0.7 * len(parts):
+    if len(parts) >= _MIN_ENTRIES and sum(
+        map(_looks_like_reference, parts)
+    ) >= 0.7 * len(parts):
         return parts
     return [chunk]
 
@@ -441,7 +452,7 @@ def _segment_unmarked(text: str) -> list[tuple[int, str]]:
     run the whole list together, and some drop only a few, so each blank-line
     chunk is additionally split on glued author-first boundaries.
     """
-    chunks = [normalize_whitespace(c) for c in re.split(r'\n[ \t]*\n', text)]
+    chunks = [normalize_whitespace(c) for c in re.split(r"\n[ \t]*\n", text)]
 
     entries: list[str] = []
     for chunk in chunks:
@@ -473,19 +484,19 @@ DOI_RE = re.compile(
 # an unanchored regex search will happily latch onto the first digit run it
 # finds (e.g. a publication year) before ever reaching the real identifier.
 ISBN_RE = re.compile(
-    r'ISBN(?:-1[03])?:?\s*'
-    r'((?:97[89][- ]?)?\d{1,5}[- ]?\d{1,7}[- ]?\d{1,7}[- ]?[\dXx])',
+    r"ISBN(?:-1[03])?:?\s*"
+    r"((?:97[89][- ]?)?\d{1,5}[- ]?\d{1,7}[- ]?\d{1,7}[- ]?[\dXx])",
     re.IGNORECASE,
 )
 
 
 def clean_doi(raw: str) -> str:
     # Trailing punctuation often gets swept in (periods, commas).
-    return raw.rstrip('.,;')
+    return raw.rstrip(".,;")
 
 
 def clean_isbn(raw: str) -> str:
-    return re.sub(r'[- ]', '', raw).upper()
+    return re.sub(r"[- ]", "", raw).upper()
 
 
 def is_plausible_isbn(digits_and_x: str) -> bool:
@@ -521,6 +532,7 @@ def extract_identifiers(entry_text: str) -> tuple[str | None, str | None]:
 # --------------------------------------------------------------------------
 # Orchestration
 # --------------------------------------------------------------------------
+
 
 def parse_etd_references(markdown_text: str) -> list[Reference]:
     section = extract_references_section(markdown_text)

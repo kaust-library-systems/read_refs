@@ -81,7 +81,11 @@ def main() -> int:
             failures.append(etd_id)
 
         status = "ok  " if match else "FAIL"
-        detail = f"  {n_entries} entries, {n_id} with id" if args.verbose and actual == "parsed" else ""
+        detail = (
+            f"  {n_entries} entries, {n_id} with id"
+            if args.verbose and actual == "parsed"
+            else ""
+        )
         arrow = "" if match else f"  (expected {expected})"
         print(f"{status} {etd_id}  {actual}{arrow}{detail}")
 

@@ -34,7 +34,9 @@ TEST_SIZE = 25
 
 
 def all_ids() -> list[str]:
-    return sorted(p.name for p in MD_DIR.glob("10754_*") if (p / f"{p.name}.md").is_file())
+    return sorted(
+        p.name for p in MD_DIR.glob("10754_*") if (p / f"{p.name}.md").is_file()
+    )
 
 
 def batch_slice(name: str, ids: list[str]) -> list[str]:
@@ -66,7 +68,9 @@ def render_one(etd_id: str) -> tuple[str, int, int]:
 
 def cmd_list(ids: list[str]) -> None:
     n_batches = (len(ids) + BATCH_SIZE - 1) // BATCH_SIZE
-    print(f"{len(ids)} ETDs, {BATCH_SIZE} per batch -> batch_01 .. batch_{n_batches:02d}")
+    print(
+        f"{len(ids)} ETDs, {BATCH_SIZE} per batch -> batch_01 .. batch_{n_batches:02d}"
+    )
     print(f"  refs written to: {REFS_DIR}")
     print(f"test        {ids[0]} .. {ids[TEST_SIZE - 1]}")
     for n in range(1, n_batches + 1):
