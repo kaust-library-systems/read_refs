@@ -77,8 +77,11 @@ orchestrates four stages, each independently testable:
    `_AUTHOR_BOUNDARY_RE`). Entry numbers come from the markers when they are
    unique, else sequential.
 3. **`extract_identifiers`** — regex out a DOI (`10.XXXX/...`) and an
-   `ISBN`-prefixed identifier; ISBN requires the literal prefix to avoid
-   latching onto publication years.
+   `ISBN`-prefixed identifier. A DOI keeps a `(` only with its matching `)`,
+   and `clean_doi` turns Markdown `\_` back into `_`. The ISBN must follow the
+   literal prefix (to avoid latching onto publication years), have exactly 10
+   or 13 digits, and pass its check digit; every candidate in the entry is
+   tried and the first valid one wins.
 4. Results are collected into `Reference` dataclasses (`number`, `raw_text`,
    `doi`, `isbn`, `has_identifier`).
 
