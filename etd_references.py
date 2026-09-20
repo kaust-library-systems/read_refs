@@ -16,7 +16,7 @@ import argparse
 import json
 import re
 import sys
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import NoReturn
 
@@ -539,6 +539,8 @@ def is_valid_isbn(digits_and_x: str) -> bool:
 
 @dataclass
 class Reference:
+    """One entry of a References section, with the identifiers found in it."""
+
     number: int
     raw_text: str
     doi: str | None = None
@@ -546,6 +548,7 @@ class Reference:
 
     @property
     def has_identifier(self) -> bool:
+        """True if a DOI or an ISBN was found in this entry."""
         return bool(self.doi or self.isbn)
 
 
@@ -571,17 +574,26 @@ def extract_identifiers(entry_text: str) -> tuple[str | None, str | None]:
 # --------------------------------------------------------------------------
 
 
-def parse_etd_references(markdown_text: str) -> list[Reference]:
-    section = extract_references_section(markdown_text)
-    if not section:
-        return []
-
+def _parse_section(section: str) -> list[Reference]:
+    """Split an already-extracted References section into Reference objects."""
     references = []
     for num, raw_text in segment_entries(section):
         doi, isbn = extract_identifiers(raw_text)
         references.append(Reference(number=num, raw_text=raw_text, doi=doi, isbn=isbn))
 
     return references
+
+
+def parse_etd_references(markdown_text: str) -> list[Reference]:
+    """Parse the References section of a thesis's Markdown into entries.
+
+    Returns an empty list if the document has no References section, or if the
+    section's entries cannot be split.
+    """
+    section = extract_references_section(markdown_text)
+    if not section:
+        return []
+    return _parse_section(section)
 
 
 # Exit status: 0 on success, 1 when the document ran but yielded no references
@@ -605,7 +617,8 @@ def _is_same_file(a: Path, b: Path) -> bool:
         return False
 
 
-def main():
+def main() -> None:
+    """Command-line entry point: parse one thesis and report its references."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("markdown_file", type=Path)
     parser.add_argument("--json", type=Path, help="Write results to this JSON file")
@@ -628,7 +641,7 @@ def main():
         print("No References-like heading found in this document.", file=sys.stderr)
         sys.exit(EXIT_NO_REFERENCES)
 
-    refs = parse_etd_references(text)
+    refs = _parse_section(section)
 
     if not refs:
         print(
