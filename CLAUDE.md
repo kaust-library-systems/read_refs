@@ -22,6 +22,10 @@ real-world defects each pattern defends against.
   ETDs, one `<id>.txt` per thesis (header comment line, then one reference per
   line with DOI/ISBN tagged in `[brackets]`). Written by `batch_extract.py`;
   override the location with `$ETD_REFS_DIR`.
+- DataCite snapshots/inventory: `/data/exports/etd_datacite/` — read-only
+  Phase 1 output of `docs/datacite-update-plan.md` (dated raw-record snapshots
+  and a derived handle-to-DOI inventory). Written by `datacite_inventory.py`;
+  override with `$ETD_DATACITE_DIR`.
 
 Any `data/` directory inside the repo is scratch for testing only (see commit
 `6fa5904`); real corpora live under `/data/exports/`.
@@ -34,6 +38,7 @@ uv run etd_references.py path/to/thesis.md --json out.json   # also dump JSON
 uv run ruff check                                     # lint
 uv run ruff format                                    # format
 uv run tests/run_samples.py -v                        # regression check over the pinned ETD subset
+uv run datacite_inventory.py                          # read-only DataCite DOI inventory (Phase 1)
 ```
 
 `etd_references.py` is the parser and single-file CLI; `batch_extract.py`

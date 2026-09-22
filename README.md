@@ -66,12 +66,24 @@ then one reference per line, numbered, with any identifiers in brackets:
 It also writes a combined `batches/batch_<n>.txt` for reviewing a whole batch
 at once. The `batches/` directory is not tracked by git.
 
+### DataCite inventory (read-only)
+
+`datacite_inventory.py` is Phase 1 of `docs/datacite-update-plan.md`: it makes
+only GET requests to the public DataCite API to map KAUST ETDs to their DOI
+records, and saves a dated snapshot of the raw records (the rollback data for
+later phases) plus a derived inventory and summary:
+
+```bash
+uv run datacite_inventory.py
+```
+
 ### Locations
 
 | Purpose | Default | Override |
 |---|---|---|
 | Input Markdown corpus | `/data/exports/etd_md` | `ETD_MD_DIR` |
 | Extracted references | `/data/exports/etd_refs` | `ETD_REFS_DIR` |
+| DataCite snapshots and inventory | `/data/exports/etd_datacite` | `ETD_DATACITE_DIR` |
 
 ## How it works
 
