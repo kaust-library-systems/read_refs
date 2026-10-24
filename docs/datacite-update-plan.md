@@ -8,15 +8,22 @@ Counts are a snapshot and will drift as new ETDs are added.
 
 `read_refs` extracts the reference lists of KAUST ETDs. The aim is to feed the
 extracted references back to DataCite, so that the impact of ETDs is captured
-and the metadata can be reused by others. DataCite suggested doing this by
-updating each ETD's DOI metadata with `relatedIdentifiers`, using the DataCite
-REST API.
+and the metadata can be reused by others.
+
+This continues an earlier project that relied on students sending their
+reference lists; it did not succeed because few were sent. The new approach is
+to download all theses and dissertations, convert them to Markdown, and
+extract the references from the text. It was presented at the FORCE11
+conference in Singapore, at a DataCite event on how the repository team uses
+DataCite services. DataCite's email recommended adding the
+references by updating each ETD's DOI metadata with `relatedIdentifiers`,
+using the DataCite REST API.
 
 Because these are public, institutional persistent-identifier records, the
 priority is not to damage existing entries. Every step below is designed so
 that it can be checked before it is applied and undone after it.
 
-## Does the suggestion hold up?
+## Does the recommended method hold up?
 
 Yes. DataCite's documentation confirms it:
 
